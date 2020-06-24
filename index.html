@@ -1,105 +1,114 @@
-<div id="player" style="height: 100vh;"></div>
-<script src="https://preview.threekit.com/app/js/threekit-player.js"></script>
-<script>
-    const AUTH_TOKEN = '776d8312-0306-4d62-add1-ed24d5594ba2';
-    threekitPlayer({
-        authToken: AUTH_TOKEN,
-        el: document.getElementById('player'),
-        assetId: '5a9901e8-9038-4dcd-867a-9156f72bd886',
-        showConfigurator: true,
-    }).then(async (api) => {
-        window.api = api;
-        const player = api.enableApi('player');
-        window.player = player;
-        await api.when('preloaded');
-        configurator = await player.getConfigurator();
-        window.configurator = configurator;
-        function easeInOutCubic(x) {
-            return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
-        }
-        function setTranslation(id, initialTranslation, deltaX) {
-            api.scene.set(
-                {
-                    id,
-                    plug: 'Transform',
-                    property: 'translation',
-                },
-                Object.assign({...initialTranslation}, {x: initialTranslation.x + deltaX})
-            );
-        }
-        // Length of anmation in ms
-        const ANIMATION_TIME = 3000;
-        // How many frames pe animation
-        const FRAMES = 150;
-        // How far the door will go
-        const DISTANCE = 52.5;
-        // Getting the ids of side doors
-        const CABS = ['Qcab_Front', 'Qcab_Back'];
-        const DOOR_RIGHT = 'Door_Right';
-        const DOOR_LEFT = 'Door_Left';
-        const doors = {
-            [DOOR_RIGHT]: {ids:[]},
-            [DOOR_LEFT]: {ids: []}
-        };
-        const assetInstanceId = configurator.proxiedConfigurator.assetId;
-        for (cab of CABS) {
-            const cabInstanceId = await player.getAssetInstance({from: assetInstanceId, name: cab, plug: 'Null', property: 'asset'});
-            for (door in doors) {
-                const doorObj = doors[door];
-                const id = api.scene.findNode({from: cabInstanceId, name: door});
-                doorObj.ids.push(id);
-                if(!doorObj.translation) {
-                doorObj.translation = api.scene.get({id, plug: 'Transform', property: 'translation'});
-                doorObj.orientation = doorObj.translation.x >= 0 ? -1 : 1;
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script src="https://preview.threekit.com/app/js/threekit-player.js"></script>
+    <div id="player" style="height: 100vh;"></div>
+    <script>
+        const AUTH_TOKEN = '776d8312-0306-4d62-add1-ed24d5594ba2';
+        threekitPlayer({
+            authToken: AUTH_TOKEN,
+            el: document.getElementById('player'),
+            assetId: '5a9901e8-9038-4dcd-867a-9156f72bd886',
+            showConfigurator: true,
+        }).then(async (api) => {
+            window.api = api;
+            const player = api.enableApi('player');
+            window.player = player;
+            await api.when('preloaded');
+            configurator = await player.getConfigurator();
+            window.configurator = configurator;
+            function easeInOutCubic(x) {
+                return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
+            }
+            function setTranslation(id, initialTranslation, deltaX) {
+                api.scene.set(
+                    {
+                        id,
+                        plug: 'Transform',
+                        property: 'translation',
+                    },
+                    Object.assign({ ...initialTranslation }, { x: initialTranslation.x + deltaX })
+                );
+            }
+            // Length of anmation in ms
+            const ANIMATION_TIME = 3000;
+            // How many frames pe animation
+            const FRAMES = 150;
+            // How far the door will go
+            const DISTANCE = 52.5;
+            // Getting the ids of side doors
+            const CABS = ['Qcab_Front', 'Qcab_Back'];
+            const DOOR_RIGHT = 'Door_Right';
+            const DOOR_LEFT = 'Door_Left';
+            const doors = {
+                [DOOR_RIGHT]: { ids: [] },
+                [DOOR_LEFT]: { ids: [] }
+            };
+            const assetInstanceId = configurator.proxiedConfigurator.assetId;
+            for (cab of CABS) {
+                const cabInstanceId = await player.getAssetInstance({ from: assetInstanceId, name: cab, plug: 'Null', property: 'asset' });
+                for (door in doors) {
+                    const doorObj = doors[door];
+                    const id = api.scene.findNode({ from: cabInstanceId, name: door });
+                    doorObj.ids.push(id);
+                    if (!doorObj.translation) {
+                        doorObj.translation = api.scene.get({ id, plug: 'Transform', property: 'translation' });
+                        doorObj.orientation = doorObj.translation.x >= 0 ? -1 : 1;
+                    }
                 }
             }
-        }
-        console.log(doors);
+            console.log(doors);
 
-        // Which frame is animation is playing
-        let progress = 0;
-        let animationId;
-        const animateDoor = () => {
-            const progressActual = easeInOutCubic(progress / FRAMES);
+            // Which frame is animation is playing
+            let progress = 0;
+            let animationId;
+            const animateDoor = () => {
+                const progressActual = easeInOutCubic(progress / FRAMES);
                 for (door in doors) {
                     const doorObj = doors[door];
                     for (doorId of doorObj.ids) {
                         setTranslation(doorId, doorObj.translation, doorObj.orientation * DISTANCE * progressActual);
                     }
                 }
-        }
-        const closeDoor = () => {
-            stopAnimation();
-            animationId = setInterval(() => {
-                if (++progress > FRAMES) {
-                    clearInterval(animationId);
-                    progress = FRAMES;
-                    return;
-                }
-                animateDoor();
-            }, ANIMATION_TIME / FRAMES);
-        };
-        const openDoor = () => {
-            stopAnimation();
-            animationId = setInterval(() => {
-                if (--progress < 0) {
-                    clearInterval(animationId);
-                    progress = 0;
-                    return;
-                }
-                animateDoor();
-            }, ANIMATION_TIME / FRAMES);
-        };
-        const stopAnimation = () => {
-            if (animationId) {
-                clearInterval(animationId);
             }
-        };
-        window.openDoor = openDoor;
-        window.closeDoor = closeDoor;
-        window.stopAnimation = stopAnimation;
-    });
-</script>
+            const closeDoor = () => {
+                stopAnimation();
+                animationId = setInterval(() => {
+                    if (++progress > FRAMES) {
+                        clearInterval(animationId);
+                        progress = FRAMES;
+                        return;
+                    }
+                    animateDoor();
+                }, ANIMATION_TIME / FRAMES);
+            };
+            const openDoor = () => {
+                stopAnimation();
+                animationId = setInterval(() => {
+                    if (--progress < 0) {
+                        clearInterval(animationId);
+                        progress = 0;
+                        return;
+                    }
+                    animateDoor();
+                }, ANIMATION_TIME / FRAMES);
+            };
+            const stopAnimation = () => {
+                if (animationId) {
+                    clearInterval(animationId);
+                }
+            };
+            window.openDoor = openDoor;
+            window.closeDoor = closeDoor;
+            window.stopAnimation = stopAnimation;
+        });
+    </script>
 </body>
 
 </html>
